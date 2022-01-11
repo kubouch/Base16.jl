@@ -12,7 +12,7 @@ function initialize(colors, fixed, n)
         means[:, i] = colors[:, y[i], x[i]]
     end
 
-    return means
+    return [fixed means]
 end
 
 function assign_clusters!(colors, means, clusters)
@@ -29,17 +29,34 @@ function assign_clusters!(colors, means, clusters)
     clusters[:] = first.(Tuple.(argmin(distances; dims=1)))
 end
 
-function update_means(colors, means, clusters) end
+function update_means!(colors, means, clusters, nfixed)
+    nmeans = size(means)[2]
 
-function kmeans(colors, fixed, n)
-    means = initialize(colors, fixed, n)
+    for i in nfixed+1:nmeans
+        mask = clusters .== i
+        cluster = colors[:, mask]
+        if size(cluster)[2] > 0
+            means[:, i] = mean(cluster, dims=2)
+        end
+    end
+end
+
+function kmeans(colors, fixed, nmeans, nsteps)
+    # Number of fixed means that do not get updated
+    nfixed = if ndims(fixed) == 1
+        size(fixed)[1]
+    else
+        size(fixed)[2]
+    end
+    means = initialize(colors, fixed, nmeans)
 
     # Holds a cluster index per each color
     clusters = zeros(Int, size(colors)[2], size(colors)[3])
 
-    assign_clusters!(colors, means, clusters)
-    display(clusters)
-    display(means)
+    for _ in 1:nsteps
+        assign_clusters!(colors, means, clusters)
+        update_means!(colors, means, clusters, nfixed)
+    end
 
     return means
 end
