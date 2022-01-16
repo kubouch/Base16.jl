@@ -48,11 +48,14 @@ function kmeans(colors, fixed, nmeans, nsteps)
     else
         size(fixed)[2]
     end
+    
+    # Initialize the means
     means = initialize(colors, fixed, nmeans)
 
     # Holds a cluster index per each color
     clusters = zeros(Int, size(colors)[2], size(colors)[3])
 
+    # Main assign-update loop
     for _ in 1:nsteps
         assign_clusters!(colors, means, clusters)
         update_means!(colors, means, clusters, nfixed)

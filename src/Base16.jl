@@ -9,6 +9,8 @@ using .KMeans
 
 const MIN_BRIGHTNESS = 0.1
 const MAX_BRIGHTNESS = 0.85
+const PLOT = true
+const NITER = 20
 
 function select_base_colors(img)
     nch = size(img)[1]
@@ -48,75 +50,78 @@ function main()
 
     bases = select_base_colors(inp_img);
 
-    means = KMeans.kmeans(inp_img, bases, 8, 10)
+    means = KMeans.kmeans(inp_img, bases, 8, NITER)
 
     # display(means)
     display(colorview(RGB, means))
 
-    # Plotly backend opens a browser at the end
-    plotly()
+    if PLOT
+        # Plotly backend opens a browser at the end
+        plotly()
 
-    # Plot the image pixels
-    # Limit max. number of plotted pixels, otherwise it's too slow
-    sz = (min(100, size(img)[2]), min(100, size(img)[2]))
-    plot_img = channelview(sample(img, sz))
+        # Plot the image pixels
+        # Limit max. number of plotted pixels, otherwise it's too slow
+        sz = (min(100, size(img)[2]), min(100, size(img)[2]))
+        plot_img = channelview(sample(img, sz))
 
-    scatter(
-        plot_img[1, :, :],
-        plot_img[2, :, :],
-        plot_img[3, :, :];
-        # Too slow:
-        # marker_z=plot_img[3, :, :],
-        markersize=0.5,
-        markerstrokewidth=0,
-        markeralpha=0.5,
-        markercolor="black",
-        legend=false,
-        size=(1000, 1000),
-    )
+        scatter(
+            plot_img[1, :, :],
+            plot_img[2, :, :],
+            plot_img[3, :, :];
+            # Too slow:
+            # marker_z=plot_img[3, :, :],
+            markersize=0.5,
+            markerstrokewidth=0,
+            markeralpha=0.5,
+            markercolor="black",
+            legend=false,
+            size=(1000, 1000),
+        )
 
-    # Plot the fixed base colors first
-    nbases = if ndims(bases) == 1
-        size(bases)[1]
-    else
-        size(bases)[2]
-    end
+        # Plot the fixed base colors first
+        nbases = if ndims(bases) == 1
+            size(bases)[1]
+        else
+            size(bases)[2]
+        end
 
-    scatter!(
-        means[1, 1:nbases],
-        means[2, 1:nbases],
-        means[3, 1:nbases];
-        # marker_z=means[3, :, :],
-        markersize=2,
-        # markerstrokewidth=0,
-        markercolor="blue",
-        legend=false,
-        size=(1000, 1000),
-    )
-
-    # Plot the rest of the base colors and show the plot
-    gui(
         scatter!(
-            means[1, nbases+1:end],
-            means[2, nbases+1:end],
-            means[3, nbases+1:end];
+            means[1, 1:nbases],
+            means[2, 1:nbases],
+            means[3, 1:nbases];
             # marker_z=means[3, :, :],
             markersize=2,
             # markerstrokewidth=0,
+            markercolor="blue",
             legend=false,
             size=(1000, 1000),
-        ),
-    )
+        )
 
-    # Print out the final colors
-    for i in 1:size(means)[2]
-        col = means[:, i]
+        # Plot the rest of the base colors and show the plot
+        gui(
+            scatter!(
+                means[1, nbases+1:end],
+                means[2, nbases+1:end],
+                means[3, nbases+1:end];
+                # marker_z=means[3, :, :],
+                markersize=2,
+                # markerstrokewidth=0,
+                legend=false,
+                size=(1000, 1000),
+            ),
+        )
 
-        r = reinterpret(N0f8(col[1]))
-        g = reinterpret(N0f8(col[2]))
-        b = reinterpret(N0f8(col[3]))
+        # Print out the final colors
+        for i in 1:size(means)[2]
+            col = means[:, i]
 
-        @printf("#%02x%02x%02x\n", r, g, b)
+            r = reinterpret(N0f8(col[1]))
+            g = reinterpret(N0f8(col[2]))
+            b = reinterpret(N0f8(col[3]))
+
+            @printf("#%02x%02x%02x\n", r, g, b)
+        end
+
     end
 
     return nothing
