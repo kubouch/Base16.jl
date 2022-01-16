@@ -9,10 +9,43 @@ using .KMeans
 
 const MIN_BRIGHTNESS = 0.1
 const MAX_BRIGHTNESS = 0.85
-const PLOT = true
-const NITER = 20
+const SHOW_PLOT = true
+const SHOW_COLORS = true
+const NITER = 25
+const COLOR_SPACE = "lab"
 
-function select_base_colors(img)
+function select_base_colors(
+    img::Base.ReinterpretArray{T,3,Lab{T}}
+) where {T<:Real}
+    nch = size(img)[1]
+
+    if size(img)[1] > 3
+        error("Error: Wrong number of channels: ", size(img)[1])
+    end
+
+    # Select the base color
+    base = reshape(mean(img; dims=(2, 3)), nch)
+
+    # Scale the base color between min and max brightness
+    # rgb_base = Lab(base[1], base[2], base[3])
+    # hsl_base = HSL(rgb_base)
+
+    bases = zeros(nch, 8)
+
+    for (i, l) in enumerate(LinRange(MIN_BRIGHTNESS*100, MAX_BRIGHTNESS*100, 8))
+        # res = Lab(HSL(hsl_base.h, hsl_base.s, l))
+        res = Lab(l, base[2], base[3])
+        bases[1, i] = res.l
+        bases[2, i] = res.a
+        bases[3, i] = res.b
+    end
+
+    return bases
+end
+
+function select_base_colors(
+    img::Base.ReinterpretArray{T,3,RGB{T}}
+) where {T<:Real}
     nch = size(img)[1]
 
     if size(img)[1] > 3
@@ -45,17 +78,39 @@ function main()
     # img = load("/home/kubouch/pictures/kodim/raw/kodim13.png")
     # img = load("/tmp/wallpaper.jpg")
 
+    color_space = if COLOR_SPACE == "lab"
+        Lab
+    elseif COLOR_SPACE == "rgb"
+        RGB
+    else
+        error("Unknown color space: ", COLOR_SPACE)
+    end
+
+    img = color_space.(img)
+
     # Image types other than RGB do not support math ops => need raw pixels
     inp_img = channelview(img)
 
-    bases = select_base_colors(inp_img);
+    bases = select_base_colors(inp_img)
 
     means = KMeans.kmeans(inp_img, bases, 8, NITER)
 
-    # display(means)
-    display(colorview(RGB, means))
+    # Convert the result back to RGB
+    means_rgb = RGB.(colorview(color_space, means))
+    # means_rgb = zeros(size(means))
 
-    if PLOT
+    # for i in 1:size(means_rgb)[2]
+    #     rgb = RGB(means[:, i]...)
+    #     means_rgb[1, i] = rgb.r
+    #     means_rgb[2, i] = rgb.g
+    #     means_rgb[3, i] = rgb.b
+    # end
+
+    if SHOW_COLORS
+        display(colorview(RGB, means_rgb))
+    end
+
+    if SHOW_PLOT
         # Plotly backend opens a browser at the end
         plotly()
 
@@ -100,9 +155,9 @@ function main()
         # Plot the rest of the base colors and show the plot
         gui(
             scatter!(
-                means[1, nbases+1:end],
-                means[2, nbases+1:end],
-                means[3, nbases+1:end];
+                means[1, (nbases + 1):end],
+                means[2, (nbases + 1):end],
+                means[3, (nbases + 1):end];
                 # marker_z=means[3, :, :],
                 markersize=2,
                 # markerstrokewidth=0,
@@ -110,18 +165,17 @@ function main()
                 size=(1000, 1000),
             ),
         )
+    end
 
-        # Print out the final colors
-        for i in 1:size(means)[2]
-            col = means[:, i]
+    # Print out the final colors
+    for i in 1:length(means_rgb)
+        col = means_rgb[i]
 
-            r = reinterpret(N0f8(col[1]))
-            g = reinterpret(N0f8(col[2]))
-            b = reinterpret(N0f8(col[3]))
+        r = reinterpret(N0f8(col.r))
+        g = reinterpret(N0f8(col.g))
+        b = reinterpret(N0f8(col.b))
 
-            @printf("#%02x%02x%02x\n", r, g, b)
-        end
-
+        @printf("#%02x%02x%02x\n", r, g, b)
     end
 
     return nothing
